@@ -62,6 +62,7 @@ import java.util.Optional;
 import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -481,6 +482,7 @@ public class MergeCoordinator implements MergeMiningCoordinator, BadChainListene
   private Void retryBlockCreationUntilUseful(
       final PayloadIdentifier payloadIdentifier, final Supplier<BlockCreationResult> blockCreator) {
 
+    final BlockCreationTask task = blockCreationTasks.get(payloadIdentifier);
     long lastStartAt;
 
     while (!isBlockCreationCancelled(payloadIdentifier)) {
@@ -494,7 +496,13 @@ public class MergeCoordinator implements MergeMiningCoordinator, BadChainListene
                 miningConfiguration.getUnstable().getPosBlockCreationRepetitionMinDuration()
                     - lastDuration);
         LOG.debug("Waiting {}ms before repeating block creation", waitBeforeRepetition);
-        Thread.sleep(waitBeforeRepetition);
+        // Use the task's cancellation latch instead of Thread.sleep so that
+        // cancelGracefully() can wake us immediately rather than waiting for
+        // the full sleep duration to elapse.
+        if (task != null && task.cancelLatch.await(waitBeforeRepetition, TimeUnit.MILLISECONDS)) {
+          LOG.debug("Block creation sleep interrupted by cancellation for payload {}", payloadIdentifier);
+          break;
+        }
       } catch (final CancellationException | InterruptedException ce) {
         LOG.atDebug()
             .setMessage("Block creation for payload id {} has been cancelled, reason {}")
@@ -1006,6 +1014,13 @@ public class MergeCoordinator implements MergeMiningCoordinator, BadChainListene
     final CompletableFuture<Void> blockCreationFuture;
 
     /**
+     * Latch used to wake the inter-iteration sleep immediately on graceful cancellation. The build
+     * loop waits on this latch instead of Thread.sleep, so cancelGracefully() can signal it to
+     * exit without waiting for the full sleep duration.
+     */
+    final CountDownLatch cancelLatch;
+
+    /**
      * Instantiates a new Block creation task.
      *
      * @param blockCreator the block creator
@@ -1016,6 +1031,7 @@ public class MergeCoordinator implements MergeMiningCoordinator, BadChainListene
       this.blockCreator = blockCreator;
       this.cancelled = new AtomicBoolean(false);
       this.blockCreationFuture = blockCreationFuture;
+      this.cancelLatch = new CountDownLatch(1);
     }
 
     /**
@@ -1029,15 +1045,18 @@ public class MergeCoordinator implements MergeMiningCoordinator, BadChainListene
 
     /**
      * Gracefully stop the build loop after the current iteration completes. Does not interrupt
-     * in-progress transaction selection, allowing it to finish and store its result.
+     * in-progress transaction selection, allowing it to finish and store its result. Immediately
+     * wakes the inter-iteration sleep via the cancel latch so the loop exits promptly.
      */
     public void cancelGracefully() {
       cancelled.set(true);
+      cancelLatch.countDown();
     }
 
     /** Hard cancel — interrupts in-progress transaction selection immediately. */
     public void cancel() {
       cancelled.set(true);
+      cancelLatch.countDown();
       blockCreator.cancel();
     }
   }
