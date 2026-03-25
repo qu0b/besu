@@ -347,12 +347,15 @@ public class MergeCoordinator implements MergeMiningCoordinator, BadChainListene
   public void finalizeProposalById(final PayloadIdentifier payloadId) {
     LOG.debug("Finalizing block proposal for payload id {}", payloadId);
 
-    // Signal graceful cancellation to the block creator
+    // Signal the build loop to stop after the current iteration completes,
+    // without interrupting in-progress transaction selection. This allows
+    // getPayload to retrieve the result of the current iteration rather than
+    // getting an empty block due to a hard interrupt.
     blockCreationTasks.computeIfPresent(
         payloadId,
         (pid, task) -> {
-          task.cancel();
-          LOG.debug("Signaled block creator to cancel gracefully for payload {}", payloadId);
+          task.cancelGracefully();
+          LOG.debug("Signaled block creator to stop after current iteration for payload {}", payloadId);
           return task;
         });
 
@@ -1024,7 +1027,15 @@ public class MergeCoordinator implements MergeMiningCoordinator, BadChainListene
       return blockCreationFuture;
     }
 
-    /** Cancel. */
+    /**
+     * Gracefully stop the build loop after the current iteration completes. Does not interrupt
+     * in-progress transaction selection, allowing it to finish and store its result.
+     */
+    public void cancelGracefully() {
+      cancelled.set(true);
+    }
+
+    /** Hard cancel — interrupts in-progress transaction selection immediately. */
     public void cancel() {
       cancelled.set(true);
       blockCreator.cancel();
