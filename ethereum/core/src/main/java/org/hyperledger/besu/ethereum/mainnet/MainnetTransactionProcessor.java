@@ -447,13 +447,12 @@ public class MainnetTransactionProcessor {
       final long initialFrameStateGasSpill =
           initialFrame.getStateGasSpillBurned() - spillBurnedBeforeInitialFinal;
 
-      // EIP-8037: On exceptional halt of the initial frame, zero the reservoir so all gas is
-      // consumed. Child frame reverts restore the reservoir via undo, but the initial frame's
-      // halt means all gas is forfeit. For REVERT, the reservoir was already restored by
-      // rollback and should be returned to the sender.
-      if (initialFrame.getExceptionalHaltReason().isPresent()) {
-        initialFrame.setStateGasReservoir(0L);
-      }
+      // EIP-8037: On exceptional halt the undo mechanism in handleStateGasSpill() already
+      // restores state gas for reverted operations back to the reservoir. Intrinsic state gas
+      // charges (contract creation, auth delegation) survive because advanceUndoMark() was
+      // called after them. The reservoir must NOT be zeroed here — it holds legitimately
+      // restored state gas from failed child frames (e.g., SSTORE in a reverted CREATE).
+      // Regular gas is already forfeited by clearGasRemaining() in exceptionalHalt().
 
       // EIP-8037: Runtime TX_MAX_GAS_LIMIT enforcement on regular gas only.
       // With multidimensional gas, tx.gasLimit can exceed TX_MAX_GAS_LIMIT to accommodate
