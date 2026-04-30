@@ -911,7 +911,7 @@ public class MessageFrame {
           .error(
               "QU0B-DEBUG decrementStateGasUsed frame={} stack={} amount={} stateGasUsedBefore={} reservoirBefore={}",
               System.identityHashCode(this),
-              messageFrameStack.size(),
+              txValues.messageFrameStack().size(),
               amount,
               txValues.stateGasUsed().get(),
               txValues.stateGasReservoir().get(),
@@ -943,7 +943,7 @@ public class MessageFrame {
           .error(
               "QU0B-DEBUG setStateGasReservoir frame={} stack={} newAmount={} reservoirBefore={} stateGasUsed={}",
               System.identityHashCode(this),
-              messageFrameStack.size(),
+              txValues.messageFrameStack().size(),
               amount,
               before,
               txValues.stateGasUsed().get(),
@@ -965,7 +965,7 @@ public class MessageFrame {
           .error(
               "QU0B-DEBUG incrementStateGasReservoir frame={} stack={} amount={} stateGasUsedBefore={} reservoirBefore={}",
               System.identityHashCode(this),
-              messageFrameStack.size(),
+              txValues.messageFrameStack().size(),
               amount,
               txValues.stateGasUsed().get(),
               before,
