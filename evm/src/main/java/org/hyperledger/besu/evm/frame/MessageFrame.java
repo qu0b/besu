@@ -906,6 +906,17 @@ public class MessageFrame {
    * @param amount the amount to subtract
    */
   public void decrementStateGasUsed(final long amount) {
+    if (amount != 0) {
+      org.slf4j.LoggerFactory.getLogger(MessageFrame.class)
+          .error(
+              "QU0B-DEBUG decrementStateGasUsed frame={} stack={} amount={} stateGasUsedBefore={} reservoirBefore={}",
+              System.identityHashCode(this),
+              messageFrameStack.size(),
+              amount,
+              txValues.stateGasUsed().get(),
+              txValues.stateGasReservoir().get(),
+              new Throwable("QU0B-DEBUG decrementStateGasUsed-stack"));
+    }
     txValues.stateGasUsed().set(txValues.stateGasUsed().get() - amount);
   }
 
@@ -926,6 +937,18 @@ public class MessageFrame {
    * @param amount the value to set the reservoir to
    */
   public void setStateGasReservoir(final long amount) {
+    final long before = txValues.stateGasReservoir().get();
+    if (before != amount) {
+      org.slf4j.LoggerFactory.getLogger(MessageFrame.class)
+          .error(
+              "QU0B-DEBUG setStateGasReservoir frame={} stack={} newAmount={} reservoirBefore={} stateGasUsed={}",
+              System.identityHashCode(this),
+              messageFrameStack.size(),
+              amount,
+              before,
+              txValues.stateGasUsed().get(),
+              new Throwable("QU0B-DEBUG setStateGasReservoir-stack"));
+    }
     txValues.stateGasReservoir().set(amount);
   }
 
@@ -937,6 +960,17 @@ public class MessageFrame {
   public void incrementStateGasReservoir(final long amount) {
     final long before = txValues.stateGasReservoir().get();
     final long after = before + amount;
+    if (amount != 0) {
+      org.slf4j.LoggerFactory.getLogger(MessageFrame.class)
+          .error(
+              "QU0B-DEBUG incrementStateGasReservoir frame={} stack={} amount={} stateGasUsedBefore={} reservoirBefore={}",
+              System.identityHashCode(this),
+              messageFrameStack.size(),
+              amount,
+              txValues.stateGasUsed().get(),
+              before,
+              new Throwable("QU0B-DEBUG incrementStateGasReservoir-stack"));
+    }
     txValues.stateGasReservoir().set(after);
     if (Eip8037Trace.ENABLED) {
       Eip8037Trace.creditReservoir(getDepth(), amount, before, after);

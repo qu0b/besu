@@ -153,6 +153,8 @@ public record TxValues(
    * @param mark the mark to which it should be rolled back to
    */
   public void undoChanges(final long mark) {
+    final long stateGasUsedBefore = stateGasUsed.get();
+    final long reservoirBefore = stateGasReservoir.get();
     warmedUpAddresses.undo(mark);
     warmedUpStorage.undo(mark);
     transientStorage.undo(mark);
@@ -162,5 +164,18 @@ public record TxValues(
     stateGasUsed.undo(mark);
     stateGasReservoir.undo(mark);
     noGrowthStateGasRefunds.undo(mark);
+    final long stateGasUsedAfter = stateGasUsed.get();
+    final long reservoirAfter = stateGasReservoir.get();
+    if (stateGasUsedBefore != stateGasUsedAfter || reservoirBefore != reservoirAfter) {
+      org.slf4j.LoggerFactory.getLogger(TxValues.class)
+          .error(
+              "QU0B-DEBUG undoChanges mark={} stateGasUsed={}->{} reservoir={}->{}",
+              mark,
+              stateGasUsedBefore,
+              stateGasUsedAfter,
+              reservoirBefore,
+              reservoirAfter,
+              new Throwable("QU0B-DEBUG undoChanges-stack"));
+    }
   }
 }
