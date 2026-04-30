@@ -150,7 +150,17 @@ public class Eip8037StateGasCostCalculator implements StateGasCostCalculator {
 
   @Override
   public boolean chargeCreateStateGas(final MessageFrame frame) {
-    return frame.consumeStateGas(createStateGas());
+    final boolean ok = frame.consumeStateGas(createStateGas());
+    org.slf4j.LoggerFactory.getLogger(Eip8037StateGasCostCalculator.class)
+        .error(
+            "QU0B-DEBUG chargeCreateStateGas frame={} amount={} stackSize={} stateGasUsedAfter={} reservoirAfter={} ok={}",
+            System.identityHashCode(frame),
+            createStateGas(),
+            frame.getMessageFrameStack().size(),
+            frame.getStateGasUsed(),
+            frame.getStateGasReservoir(),
+            ok);
+    return ok;
   }
 
   @Override
@@ -249,6 +259,15 @@ public class Eip8037StateGasCostCalculator implements StateGasCostCalculator {
 
   @Override
   public void refundCreateStateGas(final MessageFrame frame) {
+    org.slf4j.LoggerFactory.getLogger(Eip8037StateGasCostCalculator.class)
+        .error(
+            "QU0B-DEBUG refundCreateStateGas frame={} stateGasUsedBefore={} reservoirBefore={} amount={} stackSize={}",
+            System.identityHashCode(frame),
+            frame.getStateGasUsed(),
+            frame.getStateGasReservoir(),
+            createStateGas(),
+            frame.getMessageFrameStack().size(),
+            new Throwable("QU0B-DEBUG refundCreateStateGas-stack"));
     applyNoGrowthRefund(frame, createStateGas());
   }
 

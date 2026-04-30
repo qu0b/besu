@@ -164,6 +164,18 @@ public abstract class AbstractMessageProcessor {
     final long stateGasRestored = stateGasUsedBefore - frame.getStateGasUsed();
     final long reservoirRestored = frame.getStateGasReservoir() - reservoirBefore;
     final long noGrowthRefundsInScope = noGrowthRefundsBefore - frame.getNoGrowthStateGasRefunds();
+    org.slf4j.LoggerFactory.getLogger(AbstractMessageProcessor.class)
+        .error(
+            "QU0B-DEBUG handleStateGasSpill frame={} isInitial={} stateGasUsedBefore={} reservoirBefore={} stateGasUsedAfter={} reservoirAfter={} stateGasRestored={} reservoirRestored={} noGrowthRefundsInScope={}",
+            System.identityHashCode(frame),
+            isInitialFrame,
+            stateGasUsedBefore,
+            reservoirBefore,
+            frame.getStateGasUsed(),
+            frame.getStateGasReservoir(),
+            stateGasRestored,
+            reservoirRestored,
+            noGrowthRefundsInScope);
     final long grossSpill = stateGasRestored - reservoirRestored;
     final long restored;
     final long gasLeftBurn;

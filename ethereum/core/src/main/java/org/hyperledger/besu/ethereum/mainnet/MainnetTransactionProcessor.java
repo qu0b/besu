@@ -592,6 +592,29 @@ public class MainnetTransactionProcessor {
         worldState.clearAccountsThatAreEmpty();
       }
 
+      // QU0B-DEBUG: pre-BAL-view dump of every key value
+      LOG.error(
+          "QU0B-DEBUG tx={} gasUsedByTx={} refundedGas={} usedGas={} effStateGas={} "
+              + "txGasLimit={} initRemain={} stateGasUsed={} stateGasReservoir={} "
+              + "stateGasSpillBurned={} initialFrameStateGasSpill={} initialFrameRegularHaltBurn={} "
+              + "regGasLimitExceeded={} senderBal={} coinbaseBal={} coinbaseDelta={} txGasPrice={}",
+          transaction.getHash(),
+          gasUsedByTransaction,
+          refundedGas,
+          usedGas,
+          effectiveStateGas,
+          transaction.getGasLimit(),
+          initialFrame.getRemainingGas(),
+          initialFrame.getStateGasUsed(),
+          initialFrame.getStateGasReservoir(),
+          initialFrame.getStateGasSpillBurned(),
+          initialFrameStateGasSpill,
+          initialFrame.getInitialFrameRegularHaltBurn(),
+          regularGasLimitExceeded,
+          sender.getBalance(),
+          coinbase.getBalance(),
+          coinbaseWeiDelta,
+          transactionGasPrice);
       final Optional<PartialBlockAccessView> partialBlockAccessView =
           accessLocationTracker.map(tracker -> tracker.createPartialBlockAccessView(worldState));
 
