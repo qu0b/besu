@@ -181,7 +181,7 @@ public class DebugGetBadBlockTest {
     assertThat(result).hasSize(1);
 
     final BadBlockResult badBlockResult = result.iterator().next();
-    assertThat(badBlockResult.getBlockResult().getBalHash())
+    assertThat(badBlockResult.getBlockResult().getBlockAccessListHash())
         .isEqualTo(BodyValidation.balHash(blockAccessList).toString());
     assertThat(badBlockResult.getGeneratedBlockAccessList()).isEmpty();
   }

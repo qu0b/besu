@@ -58,7 +58,7 @@ import org.apache.tuweni.bytes.Bytes32;
   "withdrawalsRoot",
   "withdrawals",
   "requestsHash",
-  "balHash",
+  "blockAccessListHash",
   "slotNumber"
 })
 public class BlockResult implements JsonRpcResult {
@@ -92,7 +92,7 @@ public class BlockResult implements JsonRpcResult {
   private final String excessBlobGas;
   private final String parentBeaconBlockRoot;
   private final String requestsHash;
-  private final String balHash;
+  private final String blockAccessListHash;
   private final String slotNumber;
 
   public BlockResult(
@@ -148,7 +148,7 @@ public class BlockResult implements JsonRpcResult {
     this.parentBeaconBlockRoot =
         header.getParentBeaconBlockRoot().map(Bytes32::toHexString).orElse(null);
     this.requestsHash = header.getRequestsHash().map(Hash::toString).orElse(null);
-    this.balHash = header.getBalHash().map(Hash::toString).orElse(null);
+    this.blockAccessListHash = header.getBalHash().map(Hash::toString).orElse(null);
     this.slotNumber = header.getOptionalSlotNumber().map(Quantity::create).orElse(null);
   }
 
@@ -293,9 +293,9 @@ public class BlockResult implements JsonRpcResult {
     return requestsHash;
   }
 
-  @JsonGetter(value = "balHash")
-  public String getBalHash() {
-    return balHash;
+  @JsonGetter(value = "blockAccessListHash")
+  public String getBlockAccessListHash() {
+    return blockAccessListHash;
   }
 
   @JsonGetter(value = "slotNumber")
