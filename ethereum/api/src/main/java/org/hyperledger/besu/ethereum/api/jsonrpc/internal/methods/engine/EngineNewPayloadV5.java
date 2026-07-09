@@ -85,6 +85,9 @@ public class EngineNewPayloadV5 extends AbstractEngineNewPayload {
     } else if (payloadParameter.getSlotNumber() == null) {
       return ValidationResult.invalid(
           RpcErrorType.INVALID_SLOT_NUMBER_PARAMS, "Missing slot number field");
+    } else if (payloadParameter.getBlockAccessList() == null) {
+      return ValidationResult.invalid(
+          RpcErrorType.INVALID_PARAMS, "Missing block access list field");
     }
     return ValidationResult.valid();
   }

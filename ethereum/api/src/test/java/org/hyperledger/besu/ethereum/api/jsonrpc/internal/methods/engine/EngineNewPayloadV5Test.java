@@ -18,6 +18,8 @@ import static java.util.Collections.emptyList;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hyperledger.besu.datatypes.HardforkId.MainnetHardforkId.AMSTERDAM;
 import static org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.ExecutionEngineJsonRpcMethod.EngineStatus.INVALID;
+import static org.hyperledger.besu.ethereum.api.jsonrpc.internal.methods.engine.EngineTestSupport.fromErrorResp;
+import static org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.RpcErrorType.INVALID_PARAMS;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
@@ -33,6 +35,7 @@ import org.hyperledger.besu.ethereum.BlockProcessingOutputs;
 import org.hyperledger.besu.ethereum.BlockProcessingResult;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.EnginePayloadParameter;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.WithdrawalParameter;
+import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcError;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcResponse;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.results.EnginePayloadStatusResult;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
@@ -68,6 +71,7 @@ public class EngineNewPayloadV5Test extends EngineNewPayloadV4Test {
   private static final String ENCODED_BLOCK_ACCESS_LIST = encodeBlockAccessList(BLOCK_ACCESS_LIST);
   private static final String INVALID_BLOCK_ACCESS_LIST_ENCODING = "0xzz";
   private static final String INVALID_BLOCK_ACCESS_LIST_RLP = "0x01";
+  private static final String EMPTY_BLOCK_ACCESS_LIST_RLP = "0x";
 
   @BeforeEach
   @Override
@@ -118,15 +122,15 @@ public class EngineNewPayloadV5Test extends EngineNewPayloadV4Test {
   }
 
   @Test
-  public void shouldReturnInvalidIfBlockAccessListIsMissing() {
+  public void shouldReturnInvalidParamsIfBlockAccessListIsMissing() {
     final BlockHeader header = createValidBlockHeader(Optional.empty());
 
     final JsonRpcResponse resp = resp(super.mockEnginePayload(header, emptyList(), null, null));
 
-    final EnginePayloadStatusResult result = fromSuccessResp(resp);
-    assertThat(result.getStatusAsString()).isEqualTo(INVALID.name());
-    assertThat(result.getError()).isEqualTo("Missing block access list field");
-    assertThat(result.getLatestValidHash()).isEmpty();
+    final JsonRpcError error = fromErrorResp(resp);
+    assertThat(error.getCode()).isEqualTo(INVALID_PARAMS.getCode());
+    assertThat(error.getMessage()).isEqualTo(INVALID_PARAMS.getMessage());
+    assertThat(error.getData()).isEqualTo("Missing block access list field");
     verify(engineCallListener, times(1)).executionEngineCalled();
   }
 
@@ -151,6 +155,20 @@ public class EngineNewPayloadV5Test extends EngineNewPayloadV4Test {
 
     final JsonRpcResponse resp =
         resp(super.mockEnginePayload(header, emptyList(), null, INVALID_BLOCK_ACCESS_LIST_RLP));
+
+    final EnginePayloadStatusResult result = fromSuccessResp(resp);
+    assertThat(result.getStatusAsString()).isEqualTo(INVALID.name());
+    assertThat(result.getError()).isEqualTo("Invalid block access list encoding");
+    assertThat(result.getLatestValidHash()).isEmpty();
+    verify(engineCallListener, times(1)).executionEngineCalled();
+  }
+
+  @Test
+  public void shouldReturnInvalidIfBlockAccessListRlpIsEmpty() {
+    final BlockHeader header = createValidBlockHeader(Optional.empty());
+
+    final JsonRpcResponse resp =
+        resp(super.mockEnginePayload(header, emptyList(), null, EMPTY_BLOCK_ACCESS_LIST_RLP));
 
     final EnginePayloadStatusResult result = fromSuccessResp(resp);
     assertThat(result.getStatusAsString()).isEqualTo(INVALID.name());
