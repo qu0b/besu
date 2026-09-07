@@ -66,9 +66,22 @@ public class StreamingDebugOperationTracer extends AbstractDebugOperationTracer 
     this.frameWriter = frameWriter;
   }
 
+  private int stepCount;
+  private boolean limitReached;
+
+  @Override
+  protected void capturePreExecutionState(final MessageFrame frame) {
+    if (options.limit() > 0 && stepCount >= options.limit()) {
+      limitReached = true;
+      return;
+    }
+    limitReached = false;
+    stepCount++;
+  }
+
   @Override
   public void tracePostExecution(final MessageFrame frame, final OperationResult operationResult) {
-    if (!traceOpcode) {
+    if (limitReached || !traceOpcode) {
       return;
     }
     final Operation currentOperation = frame.getCurrentOperation();
