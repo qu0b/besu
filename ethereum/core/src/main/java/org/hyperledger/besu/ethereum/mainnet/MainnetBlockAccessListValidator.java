@@ -20,6 +20,7 @@ import org.hyperledger.besu.datatypes.StorageSlotKey;
 import org.hyperledger.besu.ethereum.core.BlockHeader;
 import org.hyperledger.besu.ethereum.core.ProcessableBlockHeader;
 import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessList;
+import org.hyperledger.besu.ethereum.mainnet.block.access.list.BlockAccessListDiff;
 
 import java.util.HashSet;
 import java.util.Optional;
@@ -201,8 +202,10 @@ public class MainnetBlockAccessListValidator implements BlockAccessListValidator
     }
     final String errorMessage =
         String.format(
-            "Block access list hash mismatch, calculated: %s header: %s",
-            computedHash.getBytes().toHexString(), headerBalHash.getBytes().toHexString());
+            "Block access list hash mismatch, calculated: %s header: %s: %s",
+            computedHash.getBytes().toHexString(),
+            headerBalHash.getBytes().toHexString(),
+            BlockAccessListDiff.describe(bal, suppliedBlockAccessList));
     logBalHashMismatch(
         errorMessage,
         logPrimaryMessageAsError,
