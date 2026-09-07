@@ -900,6 +900,64 @@ public class MainnetTransactionValidatorTest extends TrustedSetupClassLoaderExte
         Arguments.of(ValidationParamsVariant.SIMULATING, 16_777_217L, true));
   }
 
+  @Test
+  public void underpricedSimulationRejectsValueExceedingBalanceWithACleanReason() {
+    // eth_estimateGas (strict, the default) waives the *gas* part of the up-front cost via
+    // allowUnderpriced. It must still reject a transferred value the sender cannot afford: letting
+    // it reach the EVM makes MessageCallProcessor#transferValue throw IllegalStateException, which
+    // besu reports as INTERNAL_ERROR with a stack trace instead of "insufficient funds".
+    final TransactionValidator validator =
+        createTransactionValidator(
+            gasCalculator, GasLimitCalculator.constant(), false, Optional.of(BigInteger.ONE));
+
+    final Transaction valueTransaction =
+        new TransactionTestFixture()
+            .nonce(0)
+            .value(Wei.of(1_000_000))
+            .gasPrice(Wei.ZERO)
+            .chainId(Optional.of(BigInteger.ONE))
+            .createTransaction(senderKeys);
+
+    final Account poorSender = account(Wei.of(1), 0);
+
+    final ValidationResult<TransactionInvalidReason> result =
+        validator.validateForSender(
+            valueTransaction,
+            poorSender,
+            TransactionValidationParams.transactionSimulatorAllowUnderpricedAndFutureNonce());
+
+    assertThat(result.isValid()).isFalse();
+    assertThat(result.getInvalidReason())
+        .isEqualTo(TransactionInvalidReason.UPFRONT_COST_EXCEEDS_BALANCE);
+  }
+
+  @Test
+  public void underpricedSimulationStillAllowsUnaffordableGasWhenValueIsAffordable() {
+    // The waiver itself must keep working: a zero-value estimate on an account that cannot pay the
+    // gas fee is the whole point of allowUnderpriced.
+    final TransactionValidator validator =
+        createTransactionValidator(
+            gasCalculator, GasLimitCalculator.constant(), false, Optional.of(BigInteger.ONE));
+
+    final Transaction gasHeavyTransaction =
+        new TransactionTestFixture()
+            .nonce(0)
+            .value(Wei.ZERO)
+            .gasLimit(1_000_000)
+            .gasPrice(Wei.of(1_000_000_000L))
+            .chainId(Optional.of(BigInteger.ONE))
+            .createTransaction(senderKeys);
+
+    final Account poorSender = account(Wei.of(1), 0);
+
+    assertThat(
+            validator.validateForSender(
+                gasHeavyTransaction,
+                poorSender,
+                TransactionValidationParams.transactionSimulatorAllowUnderpricedAndFutureNonce()))
+        .isEqualTo(ValidationResult.valid());
+  }
+
   private Account accountWithNonce(final long nonce) {
     return account(basicTransaction.getUpfrontCost(0L), nonce);
   }

@@ -314,6 +314,24 @@ public class MainnetTransactionValidator implements TransactionValidator {
               transaction.getSender()));
     }
 
+    // `allowUnderpriced` waives the *gas* portion of the up-front cost so that a caller can
+    // simulate (eth_estimateGas / eth_call) without funding the gas fee. It must not waive the
+    // transferred value: that is spent inside the EVM by MessageCallProcessor#transferValue, which
+    // throws IllegalStateException on an underflow and surfaces as an INTERNAL_ERROR with a stack
+    // trace instead of a normal "insufficient funds" response. Reject it here with the same reason
+    // the funded path uses, matching every other client.
+    if (validationParams.allowUnderpriced()
+        && !validationParams.isAllowExceedingBalance()
+        && transaction.getValue().compareTo(senderBalance) > 0) {
+      return ValidationResult.invalid(
+          TransactionInvalidReason.UPFRONT_COST_EXCEEDS_BALANCE,
+          String.format(
+              "transaction value %s exceeds transaction sender account balance %s for sender %s",
+              transaction.getValue().toQuantityHexString(),
+              senderBalance.toQuantityHexString(),
+              transaction.getSender()));
+    }
+
     if (Long.compareUnsigned(transaction.getNonce(), senderNonce) < 0) {
       return ValidationResult.invalid(
           TransactionInvalidReason.NONCE_TOO_LOW,
