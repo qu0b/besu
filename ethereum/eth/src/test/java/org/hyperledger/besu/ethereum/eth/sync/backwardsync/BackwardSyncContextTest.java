@@ -122,6 +122,8 @@ public class BackwardSyncContextTest {
   @Mock private SyncState syncState;
   @Mock private PeerTaskExecutor peerTaskExecutor;
   @Mock private BackwardSyncAlgorithmFactory backwardSyncAlgorithmFactory;
+
+  private EthContext testEthContext;
   @Mock private BackwardSyncAlgorithm backwardSyncAlgorithm;
   private BackwardChain backwardChain;
   private Block uncle;
@@ -165,6 +167,7 @@ public class BackwardSyncContextTest {
 
     EthProtocolManagerTestUtil.createPeer(ethProtocolManager);
     EthContext ethContext = ethProtocolManager.ethContext();
+    testEthContext = ethContext;
 
     when(blockValidator.validateAndProcessBlock(any(), any(), any(), any()))
         .thenAnswer(
@@ -579,5 +582,61 @@ public class BackwardSyncContextTest {
     fcuAfterReorg.get();
     assertThat(backwardChain.getHashesToAppend().getLast())
         .isEqualTo(getRemoteBlockByNumber(reorgBlockHeight).getHash());
+  }
+
+  private BackwardSyncContext contextWithBatchSize(final int batchSize) {
+    return new BackwardSyncContext(
+        protocolContext,
+        protocolSchedule,
+        SynchronizerConfiguration.builder().backwardSyncBatchSize(batchSize).build(),
+        metricsSystem,
+        testEthContext,
+        syncState,
+        backwardChain,
+        backwardSyncAlgorithmFactory,
+        NUM_OF_RETRIES,
+        TEST_MAX_BAD_CHAIN_EVENT_ENTRIES);
+  }
+
+  @Test
+  public void batchSizeComesFromTheSynchronizerConfiguration() {
+    // The batch is sized in blocks, so its memory cost tracks how expensive the blocks are. A
+    // fleet running expensive blocks needs to lower it; before this was configurable the only
+    // lever was the JVM heap.
+    assertThat(SynchronizerConfiguration.builder().build().getBackwardSyncBatchSize())
+        .isEqualTo(SynchronizerConfiguration.DEFAULT_BACKWARD_SYNC_BATCH_SIZE);
+
+    assertThat(contextWithBatchSize(25).getBatchSize()).isEqualTo(25);
+    assertThat(
+            contextWithBatchSize(SynchronizerConfiguration.DEFAULT_BACKWARD_SYNC_BATCH_SIZE)
+                .getBatchSize())
+        .isEqualTo(SynchronizerConfiguration.DEFAULT_BACKWARD_SYNC_BATCH_SIZE);
+  }
+
+  @Test
+  public void resetBatchSizeReturnsToTheConfiguredSizeNotTheHardCodedDefault() {
+    final BackwardSyncContext smallBatchContext = contextWithBatchSize(25);
+
+    smallBatchContext.halveBatchSize();
+    assertThat(smallBatchContext.getBatchSize()).isLessThan(25);
+
+    smallBatchContext.resetBatchSize();
+    assertThat(smallBatchContext.getBatchSize()).isEqualTo(25);
+  }
+
+  @Test
+  public void anOutOfMemoryFailureIsRecognisedThroughItsCauseChain() {
+    // A session that OOMs and restarts at the same batch size OOMs again, so the node falls
+    // further behind on every cycle instead of catching up.
+    assertThat(BackwardSyncContext.isCausedByOutOfMemory(new OutOfMemoryError("Java heap space")))
+        .isTrue();
+    assertThat(
+            BackwardSyncContext.isCausedByOutOfMemory(
+                new RuntimeException(
+                    "wrapped", new IllegalStateException(new OutOfMemoryError("Java heap space")))))
+        .isTrue();
+    assertThat(BackwardSyncContext.isCausedByOutOfMemory(new RuntimeException("peer timeout")))
+        .isFalse();
+    assertThat(BackwardSyncContext.isCausedByOutOfMemory(null)).isFalse();
   }
 }

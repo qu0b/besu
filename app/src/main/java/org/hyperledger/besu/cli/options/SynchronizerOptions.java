@@ -72,6 +72,8 @@ public class SynchronizerOptions implements CLIOptions<SynchronizerConfiguration
       "--Xsynchronizer-receipts-download-step-timeout-millis";
   private static final String BACKWARD_HEADERS_DOWNLOAD_STEP_TIMEOUT_MILLIS_FLAG =
       "--Xsynchronizer-backward-headers-download-step-timeout-millis";
+  private static final String BACKWARD_SYNC_BATCH_SIZE_FLAG =
+      "--Xsynchronizer-backward-sync-batch-size";
   private static final String BODIES_DOWNLOAD_STEP_TIMEOUT_MILLIS_FLAG =
       "--Xsynchronizer-bodies-download-step-timeout-millis";
 
@@ -294,6 +296,14 @@ public class SynchronizerOptions implements CLIOptions<SynchronizerConfiguration
           "Maximum time in milliseconds to wait for backward headers download step including all retries (default: ${DEFAULT-VALUE})")
   private long backwardHeadersDownloadStepTimeoutMillis =
       SynchronizerConfiguration.DEFAULT_BACKWARD_HEADERS_DOWNLOAD_STEP_TIMEOUT_MILLIS;
+
+  @CommandLine.Option(
+      names = BACKWARD_SYNC_BATCH_SIZE_FLAG,
+      hidden = true,
+      paramLabel = "<INTEGER>",
+      description =
+          "Number of blocks requested and held in flight per backward sync batch. Lower it on chains with expensive blocks, where the default can exhaust the heap (default: ${DEFAULT-VALUE})")
+  private int backwardSyncBatchSize = SynchronizerConfiguration.DEFAULT_BACKWARD_SYNC_BATCH_SIZE;
 
   @CommandLine.Option(
       names = BODIES_DOWNLOAD_STEP_TIMEOUT_MILLIS_FLAG,
@@ -577,6 +587,7 @@ public class SynchronizerOptions implements CLIOptions<SynchronizerConfiguration
     options.receiptsDownloadStepTimeoutMillis = config.getForwardDownloadStepTimeoutMillis();
     options.backwardHeadersDownloadStepTimeoutMillis =
         config.getBackwardHeadersDownloadStepTimeoutMillis();
+    options.backwardSyncBatchSize = config.getBackwardSyncBatchSize();
     options.bodiesDownloadStepTimeoutMillis = config.getBodiesDownloadStepTimeoutMillis();
     options.snapSyncHeadersToCheckpointOnly = config.isSnapSyncHeadersToCheckpointOnly();
     return options;
@@ -620,6 +631,7 @@ public class SynchronizerOptions implements CLIOptions<SynchronizerConfiguration
             .build());
     builder.receiptsDownloadStepTimeoutMillis(receiptsDownloadStepTimeoutMillis);
     builder.backwardHeadersDownloadStepTimeoutMillis(backwardHeadersDownloadStepTimeoutMillis);
+    builder.backwardSyncBatchSize(backwardSyncBatchSize);
     builder.bodiesDownloadStepTimeoutMillis(bodiesDownloadStepTimeoutMillis);
     builder.era1ImportPrepipelineEnabled(era1ImportPrepipelineEnabled);
     builder.era1DataUri(era1DataUri);

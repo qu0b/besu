@@ -45,6 +45,11 @@ public class SynchronizerConfiguration {
   public static final int DEFAULT_DOWNLOADER_CHECKPOINT_TIMEOUTS_PERMITTED = 5;
   public static final int DEFAULT_DOWNLOADER_CHAIN_SEGMENT_SIZE = 200;
   public static final int DEFAULT_DOWNLOADER_PARALLELISM = 8;
+  /**
+   * Blocks held in flight per backward-sync batch. Sized by block count, so the memory it costs
+   * scales with how expensive the blocks are; on a high-gas chain the default can exhaust the heap.
+   */
+  public static final int DEFAULT_BACKWARD_SYNC_BATCH_SIZE = 200;
   public static final int DEFAULT_HEADER_DOWNLOAD_PARALLELISM_FACTOR = 20;
   public static final int DEFAULT_TRANSACTIONS_PARALLELISM = 4;
   public static final int DEFAULT_COMPUTATION_PARALLELISM = 2;
@@ -93,6 +98,7 @@ public class SynchronizerConfiguration {
   private final long worldStateMinMillisBeforeStalling;
   private final long forwardDownloadStepTimeoutMillis;
   private final long backwardHeadersDownloadStepTimeoutMillis;
+  private final int backwardSyncBatchSize;
   private final long bodiesDownloadStepTimeoutMillis;
   private final boolean snapSyncSavePreCheckpointHeadersOnlyEnabled;
   private final boolean snapSyncHeadersToCheckpointOnly;
@@ -127,6 +133,7 @@ public class SynchronizerConfiguration {
       final int maxTrailingPeers,
       final long receiptsDownloadStepTimeoutMillis,
       final long backwardHeadersDownloadStepTimeoutMillis,
+      final int backwardSyncBatchSize,
       final long bodiesDownloadStepTimeoutMillis,
       final boolean snapSyncSavePreCheckpointHeadersOnlyEnabled,
       final boolean snapSyncHeadersToCheckpointOnly,
@@ -157,6 +164,7 @@ public class SynchronizerConfiguration {
     this.maxTrailingPeers = maxTrailingPeers;
     this.forwardDownloadStepTimeoutMillis = receiptsDownloadStepTimeoutMillis;
     this.backwardHeadersDownloadStepTimeoutMillis = backwardHeadersDownloadStepTimeoutMillis;
+    this.backwardSyncBatchSize = backwardSyncBatchSize;
     this.bodiesDownloadStepTimeoutMillis = bodiesDownloadStepTimeoutMillis;
     this.snapSyncSavePreCheckpointHeadersOnlyEnabled = snapSyncSavePreCheckpointHeadersOnlyEnabled;
     this.snapSyncHeadersToCheckpointOnly = snapSyncHeadersToCheckpointOnly;
@@ -296,6 +304,15 @@ public class SynchronizerConfiguration {
     return backwardHeadersDownloadStepTimeoutMillis;
   }
 
+  /**
+   * Blocks requested and held in flight per backward-sync batch.
+   *
+   * @return the configured backward-sync batch size
+   */
+  public int getBackwardSyncBatchSize() {
+    return backwardSyncBatchSize;
+  }
+
   public long getBodiesDownloadStepTimeoutMillis() {
     return bodiesDownloadStepTimeoutMillis;
   }
@@ -353,6 +370,7 @@ public class SynchronizerConfiguration {
     private URI era1DataUri = DEFAULT_ERA1_DATA_URI;
     private int era1ImportPrepipelineConcurrency = DEFAULT_ERA1_IMPORT_PREPIPELINE_CONCURRENCY;
     private long receiptsDownloadStepTimeoutMillis = DEFAULT_RECEIPTS_DOWNLOAD_STEP_TIMEOUT_MILLIS;
+    private int backwardSyncBatchSize = DEFAULT_BACKWARD_SYNC_BATCH_SIZE;
     private long backwardHeadersDownloadStepTimeoutMillis =
         DEFAULT_BACKWARD_HEADERS_DOWNLOAD_STEP_TIMEOUT_MILLIS;
     private long bodiesDownloadStepTimeoutMillis = DEFAULT_BODIES_DOWNLOAD_STEP_TIMEOUT_MILLIS;
@@ -482,6 +500,17 @@ public class SynchronizerConfiguration {
       return this;
     }
 
+    /**
+     * Sets the backward-sync batch size.
+     *
+     * @param backwardSyncBatchSize blocks held in flight per batch
+     * @return this builder
+     */
+    public Builder backwardSyncBatchSize(final int backwardSyncBatchSize) {
+      this.backwardSyncBatchSize = backwardSyncBatchSize;
+      return this;
+    }
+
     public Builder backwardHeadersDownloadStepTimeoutMillis(
         final long backwardHeadersDownloadStepTimeoutMillis) {
       this.backwardHeadersDownloadStepTimeoutMillis = backwardHeadersDownloadStepTimeoutMillis;
@@ -546,6 +575,7 @@ public class SynchronizerConfiguration {
           maxTrailingPeers,
           receiptsDownloadStepTimeoutMillis,
           backwardHeadersDownloadStepTimeoutMillis,
+          backwardSyncBatchSize,
           bodiesDownloadStepTimeoutMillis,
           snapSyncSavePreCheckpointHeadersOnlyEnabled,
           snapSyncHeadersToCheckpointOnly,

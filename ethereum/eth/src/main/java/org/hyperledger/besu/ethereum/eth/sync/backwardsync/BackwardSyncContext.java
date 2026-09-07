@@ -44,7 +44,13 @@ import org.slf4j.LoggerFactory;
 
 public class BackwardSyncContext {
   private static final Logger LOG = LoggerFactory.getLogger(BackwardSyncContext.class);
-  public static final int BATCH_SIZE = 200;
+  /**
+   * @deprecated use {@link SynchronizerConfiguration#getBackwardSyncBatchSize()}, which is
+   *     configurable via {@code --Xsynchronizer-backward-sync-batch-size}. Kept so existing callers
+   *     and tests keep compiling.
+   */
+  @Deprecated
+  public static final int BATCH_SIZE = SynchronizerConfiguration.DEFAULT_BACKWARD_SYNC_BATCH_SIZE;
   private static final int DEFAULT_MAX_RETRIES = 2;
   private static final long MILLIS_DELAY_BETWEEN_PROGRESS_LOG = 10_000L;
   private static final long DEFAULT_MILLIS_BETWEEN_RETRIES = 5000;
@@ -59,7 +65,8 @@ public class BackwardSyncContext {
   private final AtomicReference<Status> currentBackwardSyncStatus = new AtomicReference<>();
   private final BackwardChain backwardChain;
   private final BackwardSyncAlgorithmFactory backwardSyncAlgorithmFactory;
-  private int batchSize = BATCH_SIZE;
+  private final int configuredBatchSize;
+  private int batchSize;
   private final int maxRetries;
   private final int maxBadChainEventEntries;
   private final long millisBetweenRetries = DEFAULT_MILLIS_BETWEEN_RETRIES;
@@ -109,6 +116,8 @@ public class BackwardSyncContext {
     this.backwardSyncAlgorithmFactory = backwardSyncAlgorithmFactory;
     this.maxRetries = maxRetries;
     this.maxBadChainEventEntries = maxBadChainEventEntries;
+    this.configuredBatchSize = synchronizerConfiguration.getBackwardSyncBatchSize();
+    this.batchSize = configuredBatchSize;
   }
 
   public synchronized boolean isSyncing() {
@@ -195,7 +204,18 @@ public class BackwardSyncContext {
             (unused, throwable) -> {
               this.currentBackwardSyncStatus.set(null);
               if (throwable != null) {
-                LOG.info("Current backward sync session failed, it will be restarted");
+                if (isCausedByOutOfMemory(throwable)) {
+                  // The batch is sized in blocks, so its memory cost tracks how expensive the
+                  // blocks are. Restarting at the configured size after an OOM reproduces the OOM,
+                  // and the node falls further behind on every cycle. Carry a reduced batch into
+                  // the next session instead; a fully served batch resets it in ForwardSyncStep.
+                  halveBatchSize();
+                  LOG.warn(
+                      "Current backward sync session ran out of memory, it will be restarted with a batch size of {}",
+                      getBatchSize());
+                } else {
+                  LOG.info("Current backward sync session failed, it will be restarted");
+                }
                 throw extractBackwardSyncException(throwable)
                     .orElse(new BackwardSyncException(throwable));
               }
@@ -313,8 +333,28 @@ public class BackwardSyncContext {
     this.batchSize = batchSize / 2 + 1;
   }
 
+  /**
+   * Reports whether a failure was caused by the heap being exhausted, at any depth of the cause
+   * chain.
+   *
+   * @param throwable the failure to inspect
+   * @return true when an {@link OutOfMemoryError} is present in the cause chain
+   */
+  @VisibleForTesting
+  static boolean isCausedByOutOfMemory(final Throwable throwable) {
+    for (Throwable cause = throwable; cause != null; cause = cause.getCause()) {
+      if (cause instanceof OutOfMemoryError) {
+        return true;
+      }
+      if (cause.getCause() == cause) {
+        break;
+      }
+    }
+    return false;
+  }
+
   public void resetBatchSize() {
-    this.batchSize = BATCH_SIZE;
+    this.batchSize = configuredBatchSize;
   }
 
   protected Void saveBlock(final Block block) {
