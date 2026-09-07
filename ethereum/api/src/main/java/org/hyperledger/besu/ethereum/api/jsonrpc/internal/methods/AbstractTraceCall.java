@@ -29,7 +29,6 @@ import org.hyperledger.besu.ethereum.transaction.CallParameter;
 import org.hyperledger.besu.ethereum.transaction.PreCloseStateHandler;
 import org.hyperledger.besu.ethereum.transaction.TransactionSimulator;
 import org.hyperledger.besu.ethereum.vm.DebugOperationTracer;
-import org.hyperledger.besu.evm.tracing.OpCodeTracerConfigBuilder;
 
 import java.util.Optional;
 
@@ -65,7 +64,7 @@ public abstract class AbstractTraceCall extends AbstractTraceByBlock {
     super(blockchainQueries, protocolSchedule, transactionSimulator);
     this.recordChildCallGas = recordChildCallGas;
     this.serverStepLimit =
-        apiConfiguration != null ? apiConfiguration.getDebugTraceStepLimit() : 0L;
+        TraceStepLimits.serverStepLimit(apiConfiguration);
   }
 
   @Override
@@ -112,26 +111,7 @@ public abstract class AbstractTraceCall extends AbstractTraceByBlock {
    * (unlimited), the server ceiling is applied. Otherwise the minimum of the two is used.
    */
   protected TraceOptions applyServerStepLimit(final TraceOptions traceOptions) {
-    if (serverStepLimit <= 0) {
-      return traceOptions;
-    }
-    final int callerLimit = traceOptions.opCodeTracerConfig().limit();
-    final int effectiveLimit =
-        callerLimit > 0
-            ? (int) Math.min(callerLimit, Math.min(serverStepLimit, Integer.MAX_VALUE))
-            : (int) Math.min(serverStepLimit, Integer.MAX_VALUE);
-    if (effectiveLimit == callerLimit) {
-      return traceOptions;
-    }
-    final var newConfig =
-        OpCodeTracerConfigBuilder.createFrom(traceOptions.opCodeTracerConfig())
-            .limit(effectiveLimit)
-            .build();
-    return new TraceOptions(
-        traceOptions.tracerType(),
-        newConfig,
-        traceOptions.tracerConfig(),
-        traceOptions.stateOverrides());
+    return TraceStepLimits.apply(traceOptions, serverStepLimit);
   }
 
   protected abstract TraceOptions getTraceOptions(final JsonRpcRequestContext requestContext);

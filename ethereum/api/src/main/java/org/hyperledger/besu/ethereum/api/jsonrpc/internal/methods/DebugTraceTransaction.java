@@ -29,6 +29,7 @@ import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.RpcErrorType;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.results.DebugTraceTransactionResult;
 import org.hyperledger.besu.ethereum.api.query.BlockchainQueries;
 import org.hyperledger.besu.ethereum.api.query.TransactionWithMetadata;
+import org.hyperledger.besu.ethereum.api.ApiConfiguration;
 import org.hyperledger.besu.ethereum.debug.TraceOptions;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 import org.hyperledger.besu.ethereum.vm.DebugOperationTracer;
@@ -40,14 +41,24 @@ public class DebugTraceTransaction implements JsonRpcMethod {
   private final TransactionTracer transactionTracer;
   private final BlockchainQueries blockchain;
   private final ProtocolSchedule protocolSchedule;
+  private final long serverStepLimit;
 
   public DebugTraceTransaction(
       final BlockchainQueries blockchain,
       final TransactionTracer transactionTracer,
       final ProtocolSchedule protocolSchedule) {
+    this(blockchain, transactionTracer, protocolSchedule, null);
+  }
+
+  public DebugTraceTransaction(
+      final BlockchainQueries blockchain,
+      final TransactionTracer transactionTracer,
+      final ProtocolSchedule protocolSchedule,
+      final ApiConfiguration apiConfiguration) {
     this.blockchain = blockchain;
     this.transactionTracer = transactionTracer;
     this.protocolSchedule = protocolSchedule;
+    this.serverStepLimit = TraceStepLimits.serverStepLimit(apiConfiguration);
   }
 
   @Override
@@ -87,7 +98,10 @@ public class DebugTraceTransaction implements JsonRpcMethod {
             e.getMessage(), RpcErrorType.INVALID_TRANSACTION_TRACE_PARAMS, e);
       }
       final DebugTraceTransactionResult debugResult =
-          debugTraceTransactionResult(hash, transactionWithMetadata.get(), traceOptions);
+          debugTraceTransactionResult(
+              hash,
+              transactionWithMetadata.get(),
+              TraceStepLimits.apply(traceOptions, serverStepLimit));
 
       return new JsonRpcSuccessResponse(
           requestContext.getRequest().getId(), debugResult.getResult());

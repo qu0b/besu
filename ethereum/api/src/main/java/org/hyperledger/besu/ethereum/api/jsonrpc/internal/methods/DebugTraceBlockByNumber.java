@@ -27,6 +27,7 @@ import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.RpcErrorType;
 import org.hyperledger.besu.ethereum.api.query.BlockchainQueries;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.debug.TraceOptions;
+import org.hyperledger.besu.ethereum.api.ApiConfiguration;
 import org.hyperledger.besu.ethereum.mainnet.ProtocolSchedule;
 
 import java.io.IOException;
@@ -40,12 +41,21 @@ public class DebugTraceBlockByNumber extends AbstractBlockParameterMethod
 
   protected final ProtocolSchedule protocolSchedule;
   private final BlockchainQueries blockchainQueriesRef;
+  private final long serverStepLimit;
 
   public DebugTraceBlockByNumber(
       final ProtocolSchedule protocolSchedule, final BlockchainQueries blockchainQueries) {
+    this(protocolSchedule, blockchainQueries, null);
+  }
+
+  public DebugTraceBlockByNumber(
+      final ProtocolSchedule protocolSchedule,
+      final BlockchainQueries blockchainQueries,
+      final ApiConfiguration apiConfiguration) {
     super(blockchainQueries);
     this.protocolSchedule = protocolSchedule;
     this.blockchainQueriesRef = blockchainQueries;
+    this.serverStepLimit = TraceStepLimits.serverStepLimit(apiConfiguration);
   }
 
   @Override
@@ -133,6 +143,6 @@ public class DebugTraceBlockByNumber extends AbstractBlockParameterMethod
       throw new InvalidJsonRpcParameters(
           e.getMessage(), RpcErrorType.INVALID_TRANSACTION_TRACE_PARAMS, e);
     }
-    return traceOptions;
+    return TraceStepLimits.apply(traceOptions, serverStepLimit);
   }
 }

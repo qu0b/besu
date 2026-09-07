@@ -20,6 +20,7 @@ import org.hyperledger.besu.ethereum.api.jsonrpc.internal.exception.InvalidJsonR
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.parameters.JsonRpcParameter.JsonRpcParameterException;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.JsonRpcErrorResponse;
 import org.hyperledger.besu.ethereum.api.jsonrpc.internal.response.RpcErrorType;
+import org.hyperledger.besu.ethereum.api.ApiConfiguration;
 import org.hyperledger.besu.ethereum.api.query.BlockchainQueries;
 import org.hyperledger.besu.ethereum.core.Block;
 import org.hyperledger.besu.ethereum.core.BlockHeaderFunctions;
@@ -45,7 +46,14 @@ public class DebugTraceBlock extends AbstractDebugTraceBlock {
 
   public DebugTraceBlock(
       final ProtocolSchedule protocolSchedule, final BlockchainQueries blockchainQueries) {
-    super(protocolSchedule, blockchainQueries);
+    this(protocolSchedule, blockchainQueries, null);
+  }
+
+  public DebugTraceBlock(
+      final ProtocolSchedule protocolSchedule,
+      final BlockchainQueries blockchainQueries,
+      final ApiConfiguration apiConfiguration) {
+    super(protocolSchedule, blockchainQueries, apiConfiguration);
     this.blockHeaderFunctions = ScheduleBasedBlockHeaderFunctions.create(protocolSchedule);
   }
 
